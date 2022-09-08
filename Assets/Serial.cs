@@ -2,22 +2,30 @@ using UnityEngine;
 using System.IO.Ports;
 using TMPro;
 
+enum TaskState
+{
+    INIT,
+    WAIT_START,
+    WAIT_EVENTS
+}
+
 public class Serial : MonoBehaviour
 {
-    private SerialPort _serialPort = new SerialPort();
-    private byte[] buffer = new byte[32];
-
+    private static TaskState taskState = TaskState.INIT;
+    private SerialPort _serialPort;
+    private byte[] buffer;
     public TextMeshProUGUI myText;
-
-    private static int counter = 0;
+    private int counter = 0;
 
     void Start()
     {
-        _serialPort.PortName = "/dev/ttyUSB0";
+        _serialPort = new SerialPort();
+        _serialPort.PortName = "/dev/ttyACM0";
         _serialPort.BaudRate = 115200;
         _serialPort.DtrEnable = true;
         _serialPort.Open();
         Debug.Log("Open Serial Port");
+        buffer = new byte[128];
     }
 
     void Update()
@@ -25,13 +33,40 @@ public class Serial : MonoBehaviour
         myText.text = counter.ToString();
         counter++;
 
-        if (Input.GetKeyDown(KeyCode.A))
+        switch (taskState)
         {
-            byte[] data = {0x31}; // or byte[] data = {'1'};
-            _serialPort.Write(data,0,1);
-            int numData = _serialPort.Read(buffer, 0, 20);
-            Debug.Log(System.Text.Encoding.ASCII.GetString(buffer));
-            Debug.Log("Bytes received: " + numData.ToString());
+            case TaskState.INIT:
+                taskState = TaskState.WAIT_START;
+                Debug.Log("WAIT START");
+                break;
+            case TaskState.WAIT_START:
+                if (Input.GetKeyDown(KeyCode.A))
+                {
+                    byte[] data = {0x31}; // start
+                    _serialPort.Write(data,0,1);
+                    Debug.Log("WAIT EVENTS");
+                    taskState = TaskState.WAIT_EVENTS;
+                }
+
+                break;
+            case TaskState.WAIT_EVENTS:
+                if (Input.GetKeyDown(KeyCode.B))
+                {
+                    byte[] data = {0x32}; // stop
+                    _serialPort.Write(data,0,1);
+                    Debug.Log("WAIT START");
+                    taskState = TaskState.WAIT_START;
+                }
+
+                if (_serialPort.BytesToRead > 0)
+                {
+                    int numData = _serialPort.Read(buffer, 0, 128);
+                    Debug.Log(System.Text.Encoding.ASCII.GetString(buffer));
+                }
+                break;
+            default:
+                Debug.Log("State Error");
+                break;
         }
     }
 }
