@@ -5,8 +5,7 @@ using TMPro;
 enum TaskState
 {
     INIT,
-    WAIT_START,
-    WAIT_EVENTS
+    WAIT_COMMANDS
 }
 
 public class Serial : MonoBehaviour
@@ -23,6 +22,7 @@ public class Serial : MonoBehaviour
         _serialPort.PortName = "/dev/ttyACM0";
         _serialPort.BaudRate = 115200;
         _serialPort.DtrEnable = true;
+        _serialPort.NewLine = "\n";
         _serialPort.Open();
         Debug.Log("Open Serial Port");
         buffer = new byte[128];
@@ -36,33 +36,33 @@ public class Serial : MonoBehaviour
         switch (taskState)
         {
             case TaskState.INIT:
-                taskState = TaskState.WAIT_START;
-                Debug.Log("WAIT START");
+                taskState = TaskState.WAIT_COMMANDS;
+                Debug.Log("WAIT COMMANDS");
                 break;
-            case TaskState.WAIT_START:
+            case TaskState.WAIT_COMMANDS:
                 if (Input.GetKeyDown(KeyCode.A))
                 {
-                    byte[] data = {0x31}; // start
-                    _serialPort.Write(data,0,1);
-                    Debug.Log("WAIT EVENTS");
-                    taskState = TaskState.WAIT_EVENTS;
+                    _serialPort.Write("ledON\n");
+                    Debug.Log("Send ledON");
                 }
-
-                break;
-            case TaskState.WAIT_EVENTS:
-                if (Input.GetKeyDown(KeyCode.B))
+                if (Input.GetKeyDown(KeyCode.S))
                 {
-                    byte[] data = {0x32}; // stop
-                    _serialPort.Write(data,0,1);
-                    Debug.Log("WAIT START");
-                    taskState = TaskState.WAIT_START;
+                    _serialPort.Write("ledOFF\n");
+                    Debug.Log("Send ledOFF");
                 }
 
+                if (Input.GetKeyDown(KeyCode.R))
+                {
+                    _serialPort.Write("readBUTTONS\n");
+                    Debug.Log("Send readBUTTONS");
+
+                }
                 if (_serialPort.BytesToRead > 0)
                 {
-                    int numData = _serialPort.Read(buffer, 0, 128);
-                    Debug.Log(System.Text.Encoding.ASCII.GetString(buffer));
+                    string response = _serialPort.ReadLine();
+                    Debug.Log(response);
                 }
+
                 break;
             default:
                 Debug.Log("State Error");
